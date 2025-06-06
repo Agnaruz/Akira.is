@@ -3,56 +3,90 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Akira.is</title>
+  <title>Welcome</title>
   <style>
     :root {
-      --bg: #0e0e10;
+      --bg: #0c0c0c;
+      --panel: #1b1b1b;
+      --accent: #4f5d75;
+      --danger: #e63946;
       --text: #e0e0e0;
-      --accent: #8888ff;
       --font: 'Helvetica Neue', sans-serif;
     }
 
     body {
       margin: 0;
-      background-color: var(--bg);
-      color: var(--text);
       font-family: var(--font);
+      background: var(--bg);
+      color: var(--text);
       display: flex;
       flex-direction: column;
       align-items: center;
-      justify-content: flex-start;
-      min-height: 100vh;
-      padding-top: 2rem;
+      padding: 2rem;
       text-align: center;
     }
 
     h1 {
-      font-size: 3rem;
+      font-size: 2.4rem;
       margin-bottom: 0.5rem;
       color: var(--accent);
     }
 
-    p {
-      font-size: 1.2rem;
-      margin-bottom: 1rem;
-      opacity: 0.8;
-    }
-
-    #score {
-      font-size: 1.1rem;
-      margin-bottom: 1rem;
-      color: var(--accent);
+    #game-container {
+      display: none;
+      flex-direction: column;
+      align-items: center;
     }
 
     canvas {
-      background: #1a1a1a;
+      background: var(--panel);
       border: 2px solid var(--accent);
+      margin-top: 1rem;
+    }
+
+    #score {
+      margin-top: 1rem;
+      font-size: 1.1rem;
+    }
+
+    .screen {
+      display: none;
+      flex-direction: column;
+      align-items: center;
+      background: var(--panel);
+      padding: 2rem;
+      border-radius: 8px;
+      max-width: 300px;
+    }
+
+    .btn {
+      background: var(--accent);
+      color: var(--bg);
+      border: none;
+      padding: 0.8rem 1.2rem;
+      font-size: 1rem;
+      border-radius: 5px;
+      cursor: pointer;
+      margin: 0.5rem;
+    }
+
+    .btn.danger {
+      background: var(--danger);
     }
 
     .footer {
-      margin-top: 1.5rem;
+      margin-top: 2rem;
       font-size: 0.9rem;
       color: #666;
+    }
+
+    select {
+      margin: 0.5rem 0;
+      padding: 0.4rem;
+      border-radius: 5px;
+      background: #111;
+      color: var(--text);
+      border: 1px solid var(--accent);
     }
 
     .controls {
@@ -68,75 +102,99 @@
       gap: 1rem;
     }
 
-    .btn {
+    .control-btn {
       background: var(--accent);
       color: var(--bg);
       border: none;
-      padding: 0.8rem 1.2rem;
-      font-size: 1.1rem;
+      padding: 0.6rem 1rem;
+      font-size: 1rem;
       border-radius: 4px;
-      cursor: pointer;
-      user-select: none;
     }
 
     @media (min-width: 600px) {
-      .controls {
-        display: none;
-      }
+      .controls { display: none; }
     }
   </style>
 </head>
 <body>
-  <h1>Akira.is</h1>
-  <p>Precision. Silence. Power.<br>Now with Snake 🐍</p>
-  <div id="score">Score: 0</div>
+  <div id="start-screen" class="screen" style="display: flex;">
+    <h1>Welcome to the void.</h1>
+    <p>Choose your speed. Survive the pixels.</p>
+    <select id="speed-select">
+      <option value="150">Slow</option>
+      <option value="100" selected>Medium</option>
+      <option value="70">Fast</option>
+    </select>
+    <button class="btn" onclick="startGame()">Start Game</button>
+  </div>
 
-  <canvas id="game" width="300" height="300"></canvas>
+  <div id="game-container">
+    <canvas id="game" width="300" height="300"></canvas>
+    <div id="score">Score: 0</div>
 
-  <div class="controls">
-    <div class="control-row">
-      <button class="btn" onclick="changeDir('Up')">⬆️</button>
-    </div>
-    <div class="control-row">
-      <button class="btn" onclick="changeDir('Left')">⬅️</button>
-      <button class="btn" onclick="changeDir('Down')">⬇️</button>
-      <button class="btn" onclick="changeDir('Right')">➡️</button>
+    <div class="controls">
+      <div class="control-row">
+        <button class="control-btn" onclick="changeDir('Up')">⬆️</button>
+      </div>
+      <div class="control-row">
+        <button class="control-btn" onclick="changeDir('Left')">⬅️</button>
+        <button class="control-btn" onclick="changeDir('Down')">⬇️</button>
+        <button class="control-btn" onclick="changeDir('Right')">➡️</button>
+      </div>
     </div>
   </div>
 
-  <div class="footer">Use arrow keys or tap buttons</div>
+  <div id="game-over-screen" class="screen">
+    <h1>Game Over</h1>
+    <p id="final-score">Your score: 0</p>
+    <button class="btn danger" onclick="restartGame()">Retry</button>
+  </div>
+
+  <div class="footer">Snake. Dark mode only. No refunds.</div>
 
   <script>
     const canvas = document.getElementById("game");
     const ctx = canvas.getContext("2d");
     const scoreEl = document.getElementById("score");
+    const finalScoreEl = document.getElementById("final-score");
+
+    const startScreen = document.getElementById("start-screen");
+    const gameContainer = document.getElementById("game-container");
+    const gameOverScreen = document.getElementById("game-over-screen");
+    const speedSelect = document.getElementById("speed-select");
 
     const scale = 15;
     const rows = canvas.height / scale;
     const columns = canvas.width / scale;
 
-    let snake;
-    let fruit;
+    let snake, fruit, interval, gameSpeed;
 
-    (function setup() {
+    function startGame() {
+      gameSpeed = parseInt(speedSelect.value);
+      startScreen.style.display = "none";
+      gameOverScreen.style.display = "none";
+      gameContainer.style.display = "flex";
       snake = new Snake();
       fruit = new Fruit();
       fruit.pickLocation();
+      interval = setInterval(gameLoop, gameSpeed);
+    }
 
-      window.setInterval(() => {
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
-        fruit.draw();
-        snake.update();
-        snake.draw();
+    function restartGame() {
+      clearInterval(interval);
+      startGame();
+    }
 
-        if (snake.eat(fruit)) {
-          fruit.pickLocation();
-        }
+    function gameLoop() {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      fruit.draw();
+      snake.update();
+      snake.draw();
 
-        snake.checkCollision();
-        scoreEl.textContent = "Score: " + snake.total;
-      }, 100);
-    })();
+      if (snake.eat(fruit)) fruit.pickLocation();
+      snake.checkCollision();
+      scoreEl.textContent = "Score: " + snake.total;
+    }
 
     window.addEventListener("keydown", e => {
       const dir = e.key.replace("Arrow", "");
@@ -154,7 +212,7 @@
       this.total = 0;
 
       this.draw = function () {
-        ctx.fillStyle = "#8888ff";
+        ctx.fillStyle = "#4f5d75";
         for (let part of this.body) {
           ctx.fillRect(part.x, part.y, scale, scale);
         }
@@ -210,19 +268,14 @@
         const head = this.body[0];
         for (let i = 1; i < this.body.length; i++) {
           if (head.x === this.body[i].x && head.y === this.body[i].y) {
-            this.total = 0;
-            this.body = [head];
-            break;
+            gameOver();
           }
         }
         if (
-          head.x >= canvas.width ||
-          head.x < 0 ||
-          head.y >= canvas.height ||
-          head.y < 0
+          head.x >= canvas.width || head.x < 0 ||
+          head.y >= canvas.height || head.y < 0
         ) {
-          this.total = 0;
-          this.body = [{ x: 5 * scale, y: 5 * scale }];
+          gameOver();
         }
       };
     }
@@ -237,9 +290,16 @@
       };
 
       this.draw = function () {
-        ctx.fillStyle = "#f25f5c";
+        ctx.fillStyle = "#e63946";
         ctx.fillRect(this.x, this.y, scale, scale);
       };
+    }
+
+    function gameOver() {
+      clearInterval(interval);
+      finalScoreEl.textContent = "Your score: " + snake.total;
+      gameContainer.style.display = "none";
+      gameOverScreen.style.display = "flex";
     }
   </script>
 </body>
