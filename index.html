@@ -1,15 +1,246 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Akira.is</title>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <style>
-    body { font-family: sans-serif; text-align: center; margin-top: 100px; }
+    :root {
+      --bg: #0e0e10;
+      --text: #e0e0e0;
+      --accent: #8888ff;
+      --font: 'Helvetica Neue', sans-serif;
+    }
+
+    body {
+      margin: 0;
+      background-color: var(--bg);
+      color: var(--text);
+      font-family: var(--font);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: flex-start;
+      min-height: 100vh;
+      padding-top: 2rem;
+      text-align: center;
+    }
+
+    h1 {
+      font-size: 3rem;
+      margin-bottom: 0.5rem;
+      color: var(--accent);
+    }
+
+    p {
+      font-size: 1.2rem;
+      margin-bottom: 1rem;
+      opacity: 0.8;
+    }
+
+    #score {
+      font-size: 1.1rem;
+      margin-bottom: 1rem;
+      color: var(--accent);
+    }
+
+    canvas {
+      background: #1a1a1a;
+      border: 2px solid var(--accent);
+    }
+
+    .footer {
+      margin-top: 1.5rem;
+      font-size: 0.9rem;
+      color: #666;
+    }
+
+    .controls {
+      margin-top: 1rem;
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+    }
+
+    .control-row {
+      display: flex;
+      justify-content: center;
+      gap: 1rem;
+    }
+
+    .btn {
+      background: var(--accent);
+      color: var(--bg);
+      border: none;
+      padding: 0.8rem 1.2rem;
+      font-size: 1.1rem;
+      border-radius: 4px;
+      cursor: pointer;
+      user-select: none;
+    }
+
+    @media (min-width: 600px) {
+      .controls {
+        display: none;
+      }
+    }
   </style>
 </head>
 <body>
-  <h1>Welcome to Akira.is</h1>
-  <p>Landing soon.</p>
+  <h1>Akira.is</h1>
+  <p>Precision. Silence. Power.<br>Now with Snake 🐍</p>
+  <div id="score">Score: 0</div>
+
+  <canvas id="game" width="300" height="300"></canvas>
+
+  <div class="controls">
+    <div class="control-row">
+      <button class="btn" onclick="changeDir('Up')">⬆️</button>
+    </div>
+    <div class="control-row">
+      <button class="btn" onclick="changeDir('Left')">⬅️</button>
+      <button class="btn" onclick="changeDir('Down')">⬇️</button>
+      <button class="btn" onclick="changeDir('Right')">➡️</button>
+    </div>
+  </div>
+
+  <div class="footer">Use arrow keys or tap buttons</div>
+
+  <script>
+    const canvas = document.getElementById("game");
+    const ctx = canvas.getContext("2d");
+    const scoreEl = document.getElementById("score");
+
+    const scale = 15;
+    const rows = canvas.height / scale;
+    const columns = canvas.width / scale;
+
+    let snake;
+    let fruit;
+
+    (function setup() {
+      snake = new Snake();
+      fruit = new Fruit();
+      fruit.pickLocation();
+
+      window.setInterval(() => {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        fruit.draw();
+        snake.update();
+        snake.draw();
+
+        if (snake.eat(fruit)) {
+          fruit.pickLocation();
+        }
+
+        snake.checkCollision();
+        scoreEl.textContent = "Score: " + snake.total;
+      }, 100);
+    })();
+
+    window.addEventListener("keydown", e => {
+      const dir = e.key.replace("Arrow", "");
+      snake.changeDirection(dir);
+    });
+
+    function changeDir(dir) {
+      snake.changeDirection(dir);
+    }
+
+    function Snake() {
+      this.body = [{ x: 5 * scale, y: 5 * scale }];
+      this.xSpeed = scale;
+      this.ySpeed = 0;
+      this.total = 0;
+
+      this.draw = function () {
+        ctx.fillStyle = "#8888ff";
+        for (let part of this.body) {
+          ctx.fillRect(part.x, part.y, scale, scale);
+        }
+      };
+
+      this.update = function () {
+        const head = Object.assign({}, this.body[0]);
+        head.x += this.xSpeed;
+        head.y += this.ySpeed;
+        this.body.unshift(head);
+        if (this.body.length > this.total + 1) this.body.pop();
+      };
+
+      this.changeDirection = function (dir) {
+        switch (dir) {
+          case "Up":
+            if (this.ySpeed === 0) {
+              this.xSpeed = 0;
+              this.ySpeed = -scale;
+            }
+            break;
+          case "Down":
+            if (this.ySpeed === 0) {
+              this.xSpeed = 0;
+              this.ySpeed = scale;
+            }
+            break;
+          case "Left":
+            if (this.xSpeed === 0) {
+              this.xSpeed = -scale;
+              this.ySpeed = 0;
+            }
+            break;
+          case "Right":
+            if (this.xSpeed === 0) {
+              this.xSpeed = scale;
+              this.ySpeed = 0;
+            }
+            break;
+        }
+      };
+
+      this.eat = function (fruit) {
+        const head = this.body[0];
+        if (head.x === fruit.x && head.y === fruit.y) {
+          this.total++;
+          return true;
+        }
+        return false;
+      };
+
+      this.checkCollision = function () {
+        const head = this.body[0];
+        for (let i = 1; i < this.body.length; i++) {
+          if (head.x === this.body[i].x && head.y === this.body[i].y) {
+            this.total = 0;
+            this.body = [head];
+            break;
+          }
+        }
+        if (
+          head.x >= canvas.width ||
+          head.x < 0 ||
+          head.y >= canvas.height ||
+          head.y < 0
+        ) {
+          this.total = 0;
+          this.body = [{ x: 5 * scale, y: 5 * scale }];
+        }
+      };
+    }
+
+    function Fruit() {
+      this.x;
+      this.y;
+
+      this.pickLocation = function () {
+        this.x = Math.floor(Math.random() * columns) * scale;
+        this.y = Math.floor(Math.random() * rows) * scale;
+      };
+
+      this.draw = function () {
+        ctx.fillStyle = "#f25f5c";
+        ctx.fillRect(this.x, this.y, scale, scale);
+      };
+    }
+  </script>
 </body>
 </html>
